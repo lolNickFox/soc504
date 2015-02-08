@@ -1,0 +1,227 @@
+---
+output: html_document
+---
+title: "Homework 1: Transforming data"
+author: "Nick Fox"
+date: Due 2015-02-05
+output: html_document
+---
+
+Topics covered in this homework include:
+ 
+- dplyr and the five verbs
+- working with factors
+- third normal form
+- tidy data
+
+
+(@) **Please calculate 2+2 in the space below.**
+
+```{r}
+2+2
+```
+
+### Set-up the soccer data
+
+The code below clears memory and then loads dplyr and the soccer data.
+
+```{r echo=FALSE}
+rm(list=ls())
+suppressPackageStartupMessages(library(dplyr))
+load(url("http://www.princeton.edu/~mjs3/soc504_s2015/CrowdstormingDataJuly1st.RData"))
+soccer.data <- tbl_df(soccer.data)
+```
+
+### A robustness check 
+
+In lab, we calculated the rate of red cards for players of different skin tone.  Now, we are going to see how robust our conclusions were to some of the choices that we made in the analysis.  In particular, it is important to know that in soccer there are actually two ways to get a red card: a direct red card and getting two yellow cards (which equals one red card).
+
+(@directreds) **Create a table like the one were made in lab where the outcome of interest is rate of direct red cards.**
+
+```{r}
+soccer.data %>%
+  filter(!is.na(rater1) | !is.na(rater2)) %>%
+  mutate(skin.color = (rater1 + rater2) /2) %>%
+  group_by(skin.color) %>%
+  summarise(total.reds = sum(red.cards), total.games = sum(games)) %>%
+  mutate(rate.redcards = total.reds / total.games)
+```
+
+(@allreds) **Imagine that you submitted the table above in a paper (Of course, in a real paper you would create a graph, but we have not learned `ggplot2` yet.) Create a table like the one above but where the outcome of interest is rate of all forms of red cards (direct red cards + two yellow cards).  The column red.cards is direct red cards and the column yellow.reds is the red cards that result from two yellow cards.**
+
+```{r}
+soccer.data %>%
+  filter(!is.na(rater1) | !is.na(rater2)) %>%
+  mutate(skin.color = (rater1 + rater2) /2) %>%
+  group_by(skin.color) %>%
+  summarise(total.reds = sum(red.cards, yellow.reds), total.games = sum(games)) %>%
+  mutate(rate.redcards = total.reds / total.games)
+```
+
+(@) In words, compare your answers in questions @directreds and @allreds.  Does this choice make a difference?
+
+```{answer}
+The trend remains the same, with players scored as lighter skinned receiving fewer red cards per game, either as direct red cards or as the sum of two yellow cards, compared to players scored as having darker skin.
+```
+
+### Looking at subsets of the data, by country
+
+Imagine that you presented these results at ASA, and an audience member speculated the relationship between skin tone and red cards would be different in the different soccer leagues.
+
+(@byleague) **Create a table that shows, for each league, the rate of red cards by skin color.  In this case, please use direct red cards (red.cards) as you outcome.**
+
+```{r}
+soccer.data %>%
+  filter(!is.na(rater1) | !is.na(rater2)) %>%
+  mutate(skin.color = (rater1 + rater2) /2) %>%
+  group_by(league.country, skin.color) %>%
+  summarise(total.reds = sum(red.cards), total.games = sum(games)) %>%
+  mutate(rate.redcards = total.reds / total.games)
+```
+
+(@) **In words, what would you conclude from your response to @byleague?**
+
+```{answer}
+Rates of red cards vary by skin color and league.
+```
+
+## Watch how this works with a different dataset: Gapminder
+
+Just to show you that this all works with different data, you will now do some analysis with the [Gapminder](http://www.gapminder.org/) data, as currated and cleaned by [Jenny Bryan](https://github.com/jennybc/gapminder).
+
+```{r echo=FALSE}
+require(dplyr)
+load(url("http://www.princeton.edu/~mjs3/soc504_s2015/gapminder.RData"))
+gapminder <- tbl_df(gapminder)
+glimpse(gapminder)
+head(gapminder)
+tail(gapminder)
+```
+
+(@) **Is this data in third normal form?**
+
+```{answer}
+No.
+```
+
+(@) Explain:
+
+```{answer}
+Information is repeated.  Many cells are devoted to saving that Afghanistan is part of Asia.  There should be separate databases using different primary keys to store unique information once.
+```
+
+(@) **Is this an optimal structure for data storage?**
+
+```{answer}
+No - lots of places that would need updating if any of the data changes.  Large room for error upon adjusting any information.
+```
+(@) **Is this a sensible structure for data analysis?**
+
+```{answer}
+Yes, for computers (they love those tall, skinny tables for analysis)
+```
+
+(@) **For each continent, show the mean GDP in each of the years in the data.**
+
+```{r}
+  gapminder %>%
+  mutate(GDP = gdpPercap * pop) %>%
+  select(continent, year, GDP)
+```
+
+(@) **Which country had the highest GDP per captia in Africa in 1952?**  Note you don't need to produce a data.frame with a single country to answer this question.  A data.frame with the appropriate countries sorted is enough.
+
+```{r}
+gapminder %>%
+  filter(year == "1952", continent == "Africa") %>%
+  select(country, year, gdpPercap) %>%
+  arrange(desc(gdpPercap))
+```
+
+(@) **Which country had the highest GDP (not GDP per captia) in any year in the data?**  Note you don't need to produce a single country to answer this question.  A data.frame with the appropriate countries sorted is enough.
+
+```{r}
+gapminder %>%
+  mutate(GDP = gdpPercap * pop) %>%
+  select(country, year, GDP) %>%
+  arrange(desc(GDP))
+```
+
+(@) **Which continent had the most variation in life expectancy in 2007?** Note you don't need to produce a single country to answer this question.  A data.frame with the appropriate countries sorted is enough.
+
+```{r}
+gapminder %>%
+  filter(year == "2007") %>%
+  group_by(continent) %>%
+  summarise(variance.lifeExp = var(lifeExp)) %>%
+  arrange(desc(variance.lifeExp))
+```
+
+(@openq) **Optional challenge: Create a question that will require you to use all 5 `dplyr` verbs: `filter`, `arrange`, `select`, `mutate`, and `summarise`.  Then, write a query to answer it.**
+
+```{answer}
+Which Spanish club has the highest average body mass index (BMI)? ((Answer = Sevilla Atletico))
+```
+
+(@) **Challenge problem: Now show the code to answer question @openq.**
+
+```{r}
+soccer.data %>%
+  filter(league.country == "Spain") %>%
+  mutate(height.meters = height / 100) %>%
+  mutate(BMI = weight / (height.meters * height.meters)) %>%
+  select(club, BMI) %>%
+  group_by(club) %>%
+  summarise(avrBMI = mean(BMI)) %>%
+  arrange(desc(avrBMI))
+```
+
+## More practice with data structures
+
+`R` comes with the dataset `ldeaths`, which records the monthly deaths from bronchitis, emphysema and asthma in the UK, 1974-1979.  To see the data type `ldeaths`. For more information type "?ldeaths"
+
+(@) **Is this data tidy?**
+
+```{answer}
+No.
+```
+
+(@) **Explain**
+
+```{answer}
+It is easy on the eyes, but a computer would have a hard time reading it.  It should have 1 column for each variable: year, month, value.
+```
+
+`R` comes with the dataset `mtcars`, which shows fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models), as taken from the 1974 Motor Trend US magazine.  To see the data type `mtcars`.  For more information type "?mtcars"
+
+(@) **Is this data tidy?**
+
+```{answer}
+Yes.
+```
+
+(@) **Explain**
+
+```{answer}
+Each column is a measured variable, without any computed variables.  Each row is an observation.
+```
+
+`R` comes with the dataset `quakes`, which shows 1000 seismic events near Fiji.  To see the data type `quakes`.  For more information type "?quakes"
+
+(@) **Is this data tidy?**
+
+```{answer}
+Yes.
+```
+
+(@) **Explain**
+
+```{answer}
+Each column is a unique variable, each row is an observation.  No computed variables.
+```
+
+#### The command below is helpful for debugging, please don't change it
+
+```{r echo=FALSE}
+sessionInfo()
+```
